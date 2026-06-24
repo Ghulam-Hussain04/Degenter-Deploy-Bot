@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Degen Deploy</title>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg:         #0a0a0f;
+      --surface:    #111118;
+      --border:     #1e1e2e;
+      --border-lit: #2e2e4e;
+      --accent:     #7c3aed;
+      --accent-lit: #9d5cff;
+      --accent-glow:rgba(124,58,237,0.18);
+      --green:      #22c55e;
+      --red:        #ef4444;
+      --yellow:     #f59e0b;
+      --text:       #e2e8f0;
+      --muted:      #64748b;
+      --card:       #13131f;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .logo span { color: var(--accent-lit); }
+
+    #wallet-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+      letter-spacing: 0.01em;
+    }
+
+    #wallet-btn:hover { background: var(--accent-lit); box-shadow: 0 0 16px var(--accent-glow); }
+    #wallet-btn.connected { background: #1a2a1a; color: var(--green); border: 1px solid var(--green); }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      flex: 1;
+      height: calc(100vh - 65px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+
+    /* Portfolio summary */
+    .portfolio-total {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.03em;
+    }
+
+    .portfolio-apy {
+      font-size: 0.82rem;
+      color: var(--green);
+      margin-top: 4px;
+    }
+
+    /* Position cards */
+    .position-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .quick-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+    .position-card:hover { border-color: var(--border-lit); }
+
+    .position-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .protocol-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .protocol-apy {
+      font-size: 0.8rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .position-amount {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .lock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.68rem;
+      color: var(--yellow);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-top: 4px;
+    }
+
+    /* APY table */
+    .apy-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+
+    .apy-row:last-child { border-bottom: none; }
+
+    .apy-protocol { color: var(--text); }
+    .apy-value { color: var(--green); font-weight: 600; }
+
+    .risk-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .risk-low    { background: var(--green); }
+    .risk-medium { background: var(--yellow); }
+    .risk-high   { background: var(--red); }
+
+    /* empty state */
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding: 20px 0;
+    }
+
+    /* ── CHAT AREA ── */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
+
+    /* Welcome */
+    .welcome {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+
+    .welcome h2 {
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome p { font-size: 0.82rem; line-height: 1.6; margin-bottom: 20px; }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .quick-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .quick-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent-lit);
+    }
+
+    /* Messages */
+    .msg {
+      display: flex;
+      gap: 10px;
+      max-width: 720px;
+    }
+
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.assistant { align-self: flex-start; }
+
+    .msg-avatar {
+      width: 30px; height: 30px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .msg.user .msg-avatar     { background: var(--accent); }
+    .msg.assistant .msg-avatar { background: var(--card); border: 1px solid var(--border); }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.83rem;
+      line-height: 1.6;
+      max-width: 560px;
+    }
+
+    .msg.user .msg-bubble {
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg.assistant .msg-bubble {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-bottom-left-radius: 2px;
+      white-space: pre-wrap;
+    }
+
+    /* Function result card */
+    .fn-result {
+      margin-top: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.75rem;
+    }
+
+    .fn-label {
+      color: var(--accent-lit);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    /* Sign tx card */
+    .sign-card {
+      margin-top: 12px;
+      background: rgba(124,58,237,0.08);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .sign-card-title {
+      font-size: 0.78rem;
+      color: var(--accent-lit);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .sign-positions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .sign-position {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text);
+      padding: 6px 8px;
+      background: var(--card);
+      border-radius: 4px;
+    }
+
+    .sign-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    .sign-btn:hover { background: var(--accent-lit); }
+    .sign-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 12px 14px;
+    }
+
+    .typing span {
+      width: 6px; height: 6px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40%           { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* ── INPUT BAR ── */
+    .input-bar {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #chat-input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.83rem;
+      resize: none;
+      min-height: 42px;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+
+    #chat-input:focus { border-color: var(--accent); }
+    #chat-input::placeholder { color: var(--muted); }
+
+    #send-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      width: 42px; height: 42px;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+
+    #send-btn:hover { background: var(--accent-lit); box-shadow: 0 0 12px var(--accent-glow); }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 0.8rem;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 300px;
+    }
+
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red); }
+
+    /* ── SCROLLBAR ── */
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Degen <span>Deploy</span>
+  </div>
+  <button id="wallet-btn" onclick="connectWallet()">Connect Wallet</button>
+</header>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- Portfolio Summary -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Portfolio</div>
+      <div class="portfolio-total" id="total-invested">$0.00</div>
+      <div class="portfolio-apy" id="weighted-apy">— % APY</div>
+    </div>
+
+    <!-- Positions -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Active Positions</div>
+      <div id="positions-list">
+        <div class="empty-state">Connect wallet to view positions</div>
+      </div>
+    </div>
+
+    <!-- Live APYs -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Live APYs</div>
+      <div id="apy-list">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CHAT -->
+<div class="chat-area">
+
+  <!-- Persistent Quick Actions Bar -->
+  <div class="quick-actions-bar">
+    <button class="quick-btn" onclick="sendQuick('What are the current APYs?')">📊 Current APYs</button>
+    <button class="quick-btn" onclick="sendQuick('Show my portfolio')">💼 My Portfolio</button>
+    <button class="quick-btn" onclick="sendQuick('Invest $100 with medium risk')">💰 Invest USDC</button>
+    <button class="quick-btn" onclick="sendQuick('Rebalance my funds to best APY')">🔄 Rebalance</button>
+    <button class="quick-btn" onclick="sendQuick('Withdraw my funds')">📤 Withdraw</button>
+  </div>
+
+  <div class="chat-messages" id="chat-messages">
+    <!-- Welcome -->
+    <div class="welcome" id="welcome-screen">
+      <h2>⚡ Degen Deploy</h2>
+      <p>Your AI-powered yield optimizer on Solana.<br/>Connect your wallet and start chatting.</p>
+    </div>
+  </div>
+
+    <!-- Input Bar -->
+    <div class="input-bar">
+      <textarea
+        id="chat-input"
+        placeholder="Ask anything — invest, rebalance, withdraw, check APYs..."
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button id="send-btn" onclick="sendMessage()">↑</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────
+const API_BASE = 'http://127.0.0.1:8000';
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let state = {
+  walletAddress: null,
+  userId: null,
+  conversationHistory: [],
+  isTyping: false,
+  pendingSignData: null   // stores prepare result waiting for signature
+};
+
+// ─────────────────────────────────────────
+// WALLET CONNECTION (Phantom)
+// ─────────────────────────────────────────
+async function connectWallet() {
+  const btn = document.getElementById('wallet-btn');
+
+  // Already connected → disconnect
+  if (state.walletAddress) {
+    state.walletAddress = null;
+    state.userId = null;
+    state.conversationHistory = [];
+    btn.textContent = 'Connect Wallet';
+    btn.classList.remove('connected');
+    resetSidebar();
+    showToast('Wallet disconnected', 'error');
+    return;
+  }
+
+  // Check Phantom installed
+  if (!window.solana || !window.solana.isPhantom) {
+    showToast('Phantom wallet not found. Please install it.', 'error');
+    window.open('https://phantom.app/', '_blank');
+    return;
+  }
+
+  try {
+    btn.textContent = 'Connecting...';
+    const response = await window.solana.connect();
+    const address = response.publicKey.toString();
+
+    state.walletAddress = address;
+
+    // Register user in backend
+    const user = await apiCall('POST', '/api/user/connect', {
+      wallet_address: address
+    });
+
+    state.userId = user.id;
+
+    // Update UI
+    const short = address.slice(0, 4) + '...' + address.slice(-4);
+    btn.textContent = `✓ ${short}`;
+    btn.classList.add('connected');
+
+    showToast(user.is_new ? '👋 Welcome to Degen Deploy!' : '✅ Wallet connected!', 'success');
+
+    // Load data
+    await Promise.all([loadPositions(), loadAPYs()]);
+
+    appendSystemMsg(`✅ Connected! Wallet: \`${short}\`\nUser ID: \`${state.userId}\`\n\nHow can I help you today? You can invest, rebalance, withdraw, or check your portfolio.`);
+
+  } catch (err) {
+    btn.textContent = 'Connect Wallet';
+    showToast('Connection failed: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+// ─────────────────────────────────────────
+// API HELPER
+// ─────────────────────────────────────────
+async function apiCall(method, path, body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (body) opts.body = JSON.stringify(body);
+
+  const res = await fetch(API_BASE + path, opts);
+  const data = await res.json();
+
+  if (!res.ok) throw new Error(data.detail || 'API error');
+  return data;
+}
+
+// ─────────────────────────────────────────
+// SIDEBAR DATA
+// ─────────────────────────────────────────
+async function loadPositions() {
+  if (!state.userId) return;
+
+  try {
+    const data = await apiCall('GET', `/api/position/${state.userId}`);
+
+    // Update totals
+    document.getElementById('total-invested').textContent =
+      '$' + (data.total_invested || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    document.getElementById('weighted-apy').textContent =
+      (data.weighted_apy || 0).toFixed(2) + '% APY';
+
+    // Render positions
+    const list = document.getElementById('positions-list');
+
+    if (!data.positions || data.positions.length === 0) {
+      list.innerHTML = '<div class="empty-state">No active positions</div>';
+      return;
+    }
+
+    list.innerHTML = data.positions.map(pos => `
+      <div class="position-card">
+        <div class="position-top">
+          <span class="protocol-name">${pos.protocol}</span>
+          <span class="protocol-apy">${pos.current_apy}%</span>
+        </div>
+        <div class="position-amount">$${pos.amount_usdc.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+        ${pos.is_locked ? `
+          <div class="lock-badge">
+            🔒 Locked ${pos.days_remaining}d
+          </div>` : ''}
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error('Failed to load positions:', err);
+  }
+}
+
+async function loadAPYs() {
+  try {
+    const data = await apiCall('GET', '/api/apy/all');
+    const list = document.getElementById('apy-list');
+
+    list.innerHTML = data.protocols.map(p => `
+      <div class="apy-row">
+        <span class="apy-protocol">
+          <span class="risk-dot risk-${p.risk}"></span>${p.protocol}
+        </span>
+        <span class="apy-value">${p.apy}%</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('apy-list').innerHTML =
+      '<div class="empty-state">Failed to load APYs</div>';
+  }
+}
+
+function resetSidebar() {
+  document.getElementById('total-invested').textContent = '$0.00';
+  document.getElementById('weighted-apy').textContent = '— % APY';
+  document.getElementById('positions-list').innerHTML =
+    '<div class="empty-state">Connect wallet to view positions</div>';
+}
+
+// ─────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message || state.isTyping) return;
+
+  if (!state.walletAddress) {
+    showToast('Please connect your wallet first', 'error');
+    return;
+  }
+
+  // Hide welcome screen
+ // Hide welcome screen (buttons no longer needed once user starts chatting)
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.remove();
+  // Add user message
+  appendMessage('user', message);
+  input.value = '';
+  input.style.height = 'auto';
+
+  // Show typing
+  showTyping();
+  state.isTyping = true;
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const result = await apiCall('POST', '/api/ai/chat', {
+      user_id: state.userId,
+      message: message,
+      conversation_history: state.conversationHistory
+    });
+
+    hideTyping();
+
+    // Update conversation history
+    state.conversationHistory = result.updated_history || [
+      ...state.conversationHistory,
+      { role: 'user', content: message },
+      { role: 'assistant', content: result.reply }
+    ];
+
+    // Render AI response
+    appendMessage('assistant', result.reply, result);
+
+    // Refresh sidebar if function was called
+    if (result.function_called) {
+      await loadPositions();
+    }
+
+  } catch (err) {
+    hideTyping();
+    appendMessage('assistant', '❌ Error: ' + err.message);
+    showToast(err.message, 'error');
+  }
+
+  state.isTyping = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+// ─────────────────────────────────────────
+// MESSAGE RENDERING
+// ─────────────────────────────────────────
+function appendMessage(role, text, apiResult = null) {
+  const container = document.getElementById('chat-messages');
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const avatar = role === 'user' ? '👤' : '⚡';
+
+  let extra = '';
+
+  // If it's a prepare function result → show sign card
+  if (apiResult && apiResult.function_called) {
+    const fn = apiResult.function_called;
+    const res = apiResult.function_result;
+
+    if ((fn === 'prepare_invest' || fn === 'prepare_invest_custom') && res && res.positions) {
+      extra = buildSignCard('invest', res);
+    } else if (fn === 'prepare_rebalance' && res && res.moves) {
+      extra = buildSignCard('rebalance', res);
+    } else if (fn === 'prepare_withdraw' && res && res.withdrawable) {
+      extra = buildSignCard('withdraw', res);
+    } else if (fn === 'get_positions' && res && res.positions) {
+      // Already shown in sidebar, no extra card needed
+    }
+  }
+
+  div.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div>
+      <div class="msg-bubble">${escapeHtml(text)}</div>
+      ${extra}
+    </div>
+  `;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendSystemMsg(text) {
+  const container = document.getElementById('chat-messages');
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.innerHTML = `
+    <div class="msg-avatar">⚡</div>
+    <div class="msg-bubble">${text}</div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ─────────────────────────────────────────
+// SIGN CARDS
+// ─────────────────────────────────────────
+function buildSignCard(type, data) {
+  // Store pending data for signing
+  state.pendingSignData = { type, data };
+
+  if (type === 'invest') {
+    const positions = data.positions || [];
+    const positionsHtml = positions.map(p => `
+      <div class="sign-position">
+        <span>${p.protocol}</span>
+        <span>$${p.amount.toFixed(2)} @ ${p.apy}%</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="sign-card">
+        <div class="sign-card-title">💰 Ready to Invest — Sign Transactions</div>
+        <div class="sign-positions">${positionsHtml}</div>
+        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:10px;">
+          Total: $${data.total_amount} · Weighted APY: ${data.weighted_apy}%
+        </div>
+        <button class="sign-btn" onclick="signAndConfirm('invest')">
+          ✍️ Sign in Phantom
+        </button>
+      </div>
+    `;
+  }
+
+  if (type === 'rebalance') {
+    const moves = data.moves || [];
+    const movesHtml = moves.map(m => `
+      <div class="sign-position">
+        <span>${m.from_protocol} → ${m.to_protocol}</span>
+        <span>$${m.amount.toFixed(2)}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="sign-card">
+        <div class="sign-card-title">🔄 Rebalance Plan — Sign Transactions</div>
+        <div class="sign-positions">${movesHtml}</div>
+        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:10px;">
+          Total moving: $${data.total_moving} → ${data.target_protocol} @ ${data.target_apy}%
+        </div>
+        <button class="sign-btn" onclick="signAndConfirm('rebalance')">
+          ✍️ Sign in Phantom
+        </button>
+      </div>
+    `;
+  }
+
+  if (type === 'withdraw') {
+    const withdrawable = data.withdrawable || [];
+    const posHtml = withdrawable.map(p => `
+      <div class="sign-position">
+        <span>${p.protocol}</span>
+        <span>$${p.amount_after_fee.toFixed(2)}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="sign-card">
+        <div class="sign-card-title">📤 Withdrawal — Sign Transactions</div>
+        <div class="sign-positions">${posHtml}</div>
+        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:10px;">
+          Total: $${data.total_withdrawable}
+          ${data.total_locked > 0 ? ` · Locked: $${data.total_locked}` : ''}
+        </div>
+        <button class="sign-btn" onclick="signAndConfirm('withdraw')">
+          ✍️ Sign in Phantom
+        </button>
+      </div>
+    `;
+  }
+
+  return '';
+}
+
+// ─────────────────────────────────────────
+// SIGN + CONFIRM
+// ─────────────────────────────────────────
+async function signAndConfirm(type) {
+  if (!state.pendingSignData) return;
+
+  const { data } = state.pendingSignData;
+
+  // Disable all sign buttons
+  document.querySelectorAll('.sign-btn').forEach(b => {
+    b.disabled = true;
+    b.textContent = 'Signing...';
+  });
+
+  try {
+    // In production: sign real Solana transactions via Phantom
+    // For now: generate mock signatures to test the confirm APIs
+    const mockSignatures = generateMockSignatures(
+      type === 'invest' ? data.positions.length :
+      type === 'rebalance' ? data.moves.length :
+      data.withdrawable.length
+    );
+
+    let confirmResult;
+
+    if (type === 'invest') {
+      confirmResult = await apiCall('POST', '/api/invest/confirm', {
+        user_id: state.userId,
+        position_ids: data.pending_position_ids,
+        tx_signatures: mockSignatures
+      });
+    }
+
+    else if (type === 'rebalance') {
+      confirmResult = await apiCall('POST', '/api/rebalance/confirm', {
+        user_id: state.userId,
+        moves: data.moves,
+        to_protocol: data.target_protocol,
+        tx_signatures: mockSignatures
+      });
+    }
+
+    else if (type === 'withdraw') {
+      // Send full withdrawable array — backend needs amounts for partial withdrawals
+      const withdrawablePayload = data.withdrawable.map(p => ({
+        position_id: p.position_id,
+        withdraw_amount: p.gross_amount,
+        remaining_in_position: p.remaining_in_position
+      }));
+      confirmResult = await apiCall('POST', '/api/withdraw/confirm', {
+        user_id: state.userId,
+        withdrawable: withdrawablePayload,
+        tx_signatures: mockSignatures
+      });
+    }
+
+    // Show success
+    document.querySelectorAll('.sign-btn').forEach(b => {
+      b.textContent = '✅ Confirmed!';
+      b.style.background = 'var(--green)';
+    });
+
+    showToast(confirmResult.message || '✅ Transaction confirmed!', 'success');
+    appendSystemMsg('✅ ' + (confirmResult.message || 'Transaction confirmed successfully!'));
+
+    // Refresh sidebar
+    await loadPositions();
+    state.pendingSignData = null;
+
+  } catch (err) {
+    document.querySelectorAll('.sign-btn').forEach(b => {
+      b.disabled = false;
+      b.textContent = '✍️ Sign in Phantom';
+    });
+    showToast('Failed: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+function generateMockSignatures(count) {
+  return Array.from({ length: count }, (_, i) =>
+    'sig_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8)
+  );
+}
+
+// ─────────────────────────────────────────
+// TYPING INDICATOR
+// ─────────────────────────────────────────
+function showTyping() {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="msg-avatar">⚡</div>
+    <div class="msg-bubble">
+      <div class="typing">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ─────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `show ${type}`;
+  setTimeout(() => { toast.className = ''; }, 3000);
+}
+
+// ─────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--surface);padding:1px 5px;border-radius:3px;font-size:0.85em">$1</code>');
+}
+
+// ─────────────────────────────────────────
+// INIT — Load APYs on page load
+// ─────────────────────────────────────────
+window.addEventListener('load', () => {
+  loadAPYs();
+
+  // Auto-connect if Phantom already connected
+  if (window.solana && window.solana.isPhantom) {
+    window.solana.on('connect', () => {
+      if (!state.walletAddress) connectWallet();
+    });
+  }
+});
+</script>
+</body>
+</html>
